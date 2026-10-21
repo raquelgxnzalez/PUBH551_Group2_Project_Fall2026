@@ -1,0 +1,11 @@
+---
+title: 'Group Project: Depression, Comorbidity, and Multiple Linear Regression'
+author: "Raquel Gonzalez, Nancy Hernandez, Grant Pasamonte, and Kevin Roldan"
+date: "2026-10-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
