@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ```{r, include=FALSE}
@@ -20,7 +20,9 @@ library(tidyverse)
 
 ```{r}
 # Import raw CSV file from data folder
-raw_data <- read.csv("../data/PUBH551_Group_Project_Depression_Data_2005_2025.csv")
+raw_data <- read_csv("../data/PUBH551_Group_Project_Depression_Data_2005_2025.csv", 
+                     col_types = cols(.default = col_character())) 
+                    # Added col_types = col(.default) per step 2b instruction
 ```
 
 ```{r, eval = FALSE}
@@ -48,18 +50,21 @@ We need to replace the missing value representations with standard NA values to 
 na_data <- raw_data %>%
   mutate(across(where(is.character), ~ ifelse(.x %in% c("", ".", "NA", "N/A", "missing"), NA, .x)))
 
-# Standardize the condition column to fix inconsistent capitalization, whitespace, underscores, and missing-value representations
+# Standardize the dataset to fix inconsistent capitalization, whitespace, underscores, and missing-value representations
 data <- na_data %>%
   # Use mutate() to modify column inside the dataset
-  mutate(
-    comorbid_condition = comorbid_condition %>%
-    # str_to_lower() converts every letter to lowercase
-       str_replace_all("_", " ") %>%
-    # str_squish() removes leading/trailing spaces, turns double-spaces into single
-    str_squish() %>%
-    str_to_lower() 
-    # str_replace_all() to replace all underscores with normal spaces
-  )
+  mutate(across(
+    # Exclude the often case-sensitive ID codes from cleaning using !c()
+    where(is.character) & !c(record_id, participant_id),
+    # Apply changes to every item in list
+    ~ .x %>%
+      # str_to_lower() converts every letter to lowercase
+      str_to_lower() %>%
+      # str_squish() removes leading/trailing spaces
+      str_squish() %>%
+      # str_replace_all() to replace all underscores with normal spaces
+      str_replace_all("_", " ")
+  ))
 ```
 
 Looking through the unique values, we can document a variety of inconsistencies across the "comorbid_condition" column prior to filtering.
@@ -91,3 +96,108 @@ Looking through the unique values, we can document a variety of inconsistencies 
 The dataset now has standard missing value notation and the comorbid_condition column has consistent syntax across all observations (N = 7200)
 
 ## 2b. Cleaning Numeric Fields
+
+```{r}
+# Retroactively add cols(.default = col_character())) to the CSV import step
+# to have deliberate control of column type
+```
+
+Based on the unique values audited in Q2.a, several numeric variables contain commas, percent signs, currency symbols, units, and other extra characters.
+
+We have documented the following issues across the dataset:
+
+- **annual_household_income_usd:** "\$" and "," and "USD"
+  - e.g. "\$60,829", "19732 USD"
+- **area_deprivation_index_percentile:** "%" and " percent"
+  - e.g. "42.5%", "39.8 percent"
+- **sleep_duration_hours:** " h" and "hrs"
+  - e.g. "8.2 h", "6.3hrs"
+- **physical_activity_min_week"**: " min"
+  - e.g. "161 min"
+- **bmi_kg_m2:** "kg/m2" and "BMI"
+  - e.g. "21.6 kg/m2", "30.2 BMI"
+- **systolic_bp_mmHg:** "mm Hg" and "mmhg"
+  - e.g. "134mm Hg", "106 mmHg"
+- **total_cholesterol_mg_dL & fasting_glucose_mg_dL:** "mg/dl" and "mg_dl"
+  - e.g. "165mg_dl", "67 mg/dl"
+- **healthcare_visits_past_year:** "visits"
+  - e.g. "5 visits"
+- **phq9_score:** "score:" and "pts" and "points"
+  - e.g. "score:11", "9 pts", "16 points"
+  
+```{r}
+# Use across() and parse_number() to clean numeric fields discussed above
+data <- data %>%
+  mutate(across(
+    c(annual_household_income_usd, area_deprivation_index_percentile, 
+      sleep_duration_hours, physical_activity_min_week, bmi_kg_m2, 
+      systolic_bp_mmHg, total_cholesterol_mg_dL, healthcare_visits_past_year, 
+      phq9_score),
+    parse_number
+      )
+  )      
+```
+
+## 2c. Removing Duplicates
+
+There are 6 comorbid condition subsets in the dataset (Asthma, Cardiovascular Disease, Chronic Kidney Disease, Hypertension, Obesity, and Type 2 Diabetes.)
+
+Each subset has a duplicate row, for a total of 6 duplicate rows that need to be removed, for an N = 7,194 (from 7,200).
+
+```{r}
+# Use distinct() to remove all duplicate rows
+data <- data %>%
+  distinct()
+```
+
+```{r}
+# Identify rows where either prevalence or mortality values are missing
+missing_vars <- data %>%
+  # Use filter() to identify rows of NAs in each prevalence/mortality column
+  filter(is.na(condition_prevalence_per_100k) | 
+          is.na(condition_mortality_per_100k)) %>%
+  # Select key columns (record_id), comorbid_condition) in addition to 
+  # prevalence/mortality to create a df for easy scanning
+  select(record_id, comorbid_condition, 
+         condition_prevalence_per_100k, condition_mortality_per_100k) %>%
+  as.data.frame()
+# Print table of missing variables with key identifier columns
+print(missing_vars)
+```
+
+Each comorbid condition has a missing prevalence and mortality value for a total of 12 records. 
+
+These missing prevalence and mortality values do not cause exclusion from the depression model because these variables are not called for in either the SLR or MLR models. 
+
+The MLR depression model, $\text{PHQ9}_i = \beta_0 + \beta_1(\text{PhysicalActivity}_i) + \beta_2(\text{Age}_i) + \text{sex indicators} + \beta_{\text{income}}(\text{Income}_i) + \text{smoking indicators} + \varepsilon_i$, evaluates individual-level health relationships, opposed to contextual metrics like prevalence or mortality. Consequently, missing values in these variables will not affect any model parameters or analysis, so they do not warrant deletion from the depression model.  
+
+## 2d. Suspicious Value 
+
+```{r}
+# Use summary() to identify the suspicious value in total_cholesterol_mg_dL
+summary(data$total_cholesterol_mg_dL)
+```
+The variable total_cholesterol_mg_dL in this dataset primarily contains values from 85 mg/dL to about 300 mg/dL, but has one high outlier at 950 mg/dL. This value is far outside the norm in the dataset and in what is medically plausible. While it is not impossible for an individual to have an extreme reading like 950 mg/dL, it is more probable that this represents a data entry error, though this cannot be verified. 
+
+This suspicious value does not need to be removed from the dataset because it is not part of the primary MLR depression model, $\text{PHQ9}_i = \beta_0 + \beta_1(\text{PhysicalActivity}_i) + \beta_2(\text{Age}_i) + \text{sex indicators} + \beta_{\text{income}}(\text{Income}_i) + \text{smoking indicators} + \varepsilon_i$. This outlier will neither affect calculations nor analysis, so it is safe to retain in the dataset. 
+
+## 2e. Complete-Case Analysis for Primary MLR
+
+```{r}
+# Perform a complete-case analysis for the primary MLR
+analytic_data <- data %>%
+  # Filter the dataset for our group's chosen condition subset
+  filter(comorbid_condition == "insert here") %>%
+  # Restrict to complete cases on the 6 primary MLR variables only
+  drop_na(
+    phq9_score,
+    physical_activity_min_week,
+    age_years,
+    sex,
+    annual_household_income_usd,
+    smoking_status
+  )
+# Export the cleaned analytic CSV for analysis into the data folder
+write_csv(analytic_data, "../data/cleaned_analytic_data.csv")
+```
+
