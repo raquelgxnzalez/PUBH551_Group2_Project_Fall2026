@@ -124,7 +124,7 @@ We have documented the following issues across the dataset:
   - e.g. "5 visits"
 - **phq9_score:** "score:" and "pts" and "points"
   - e.g. "score:11", "9 pts", "16 points"
-  
+
 ```{r}
 # Use across() and parse_number() to clean numeric fields discussed above
 data <- data %>%
@@ -165,21 +165,22 @@ missing_vars <- data %>%
 print(missing_vars)
 ```
 
-Each comorbid condition has a missing prevalence and mortality value for a total of 12 records. 
+Each comorbid condition has a missing prevalence and mortality value for a total of 12 records.
 
-These missing prevalence and mortality values do not cause exclusion from the depression model because these variables are not called for in either the SLR or MLR models. 
+These missing prevalence and mortality values do not cause exclusion from the depression model because these variables are not called for in either the SLR or MLR models.
 
-The MLR depression model, $\text{PHQ9}_i = \beta_0 + \beta_1(\text{PhysicalActivity}_i) + \beta_2(\text{Age}_i) + \text{sex indicators} + \beta_{\text{income}}(\text{Income}_i) + \text{smoking indicators} + \varepsilon_i$, evaluates individual-level health relationships, opposed to contextual metrics like prevalence or mortality. Consequently, missing values in these variables will not affect any model parameters or analysis, so they do not warrant deletion from the depression model.  
+The MLR depression model, $\text{PHQ9}_i = \beta_0 + \beta_1(\text{PhysicalActivity}_i) + \beta_2(\text{Age}_i) + \text{sex indicators} + \beta_{\text{income}}(\text{Income}_i) + \text{smoking indicators} + \varepsilon_i$, evaluates individual-level health relationships, opposed to contextual metrics like prevalence or mortality. Consequently, missing values in these variables will not affect any model parameters or analysis, so they do not warrant deletion from the depression model.
 
-## 2d. Suspicious Value 
+## 2d. Suspicious Value
 
 ```{r}
 # Use summary() to identify the suspicious value in total_cholesterol_mg_dL
 summary(data$total_cholesterol_mg_dL)
 ```
-The variable total_cholesterol_mg_dL in this dataset primarily contains values from 85 mg/dL to about 300 mg/dL, but has one high outlier at 950 mg/dL. This value is far outside the norm in the dataset and in what is medically plausible. While it is not impossible for an individual to have an extreme reading like 950 mg/dL, it is more probable that this represents a data entry error, though this cannot be verified. 
 
-This suspicious value does not need to be removed from the dataset because it is not part of the primary MLR depression model, $\text{PHQ9}_i = \beta_0 + \beta_1(\text{PhysicalActivity}_i) + \beta_2(\text{Age}_i) + \text{sex indicators} + \beta_{\text{income}}(\text{Income}_i) + \text{smoking indicators} + \varepsilon_i$. This outlier will neither affect calculations nor analysis, so it is safe to retain in the dataset. 
+The variable total_cholesterol_mg_dL in this dataset primarily contains values from 85 mg/dL to about 300 mg/dL, but has one high outlier at 950 mg/dL. This value is far outside the norm in the dataset and in what is medically plausible. While it is not impossible for an individual to have an extreme reading like 950 mg/dL, it is more probable that this represents a data entry error, though this cannot be verified.
+
+This suspicious value does not need to be removed from the dataset because it is not part of the primary MLR depression model, $\text{PHQ9}_i = \beta_0 + \beta_1(\text{PhysicalActivity}_i) + \beta_2(\text{Age}_i) + \text{sex indicators} + \beta_{\text{income}}(\text{Income}_i) + \text{smoking indicators} + \varepsilon_i$. This outlier will neither affect calculations nor analysis, so it is safe to retain in the dataset.
 
 ## 2e. Complete-Case Analysis for Primary MLR
 
@@ -201,4 +202,10 @@ analytic_data <- data %>%
 write_csv(analytic_data, "../data/cleaned_analytic_data.csv")
 ```
 
+The master CSV contained N = 7200 observations of 36 variables (1200 observations per comorbidity (6).
+
+After standardizing the condition column and cleaning the numeric fields, we removed all duplicate rows (1 per comorbidity (6)), resulting in N = 7194.
+
 After selecting cardiovascular disease as our comorbid condition, performing a complete-case analysis on the dataset results in a final N = 1075.
+
+*Note: we opted to clean the entire master dataset prior to filtering (opposed to cleaning only our filtered dataset) to maintain a clean separation between the data cleaning phase and the analytic subsetting phase and to establish a clear and reproducible data management strategy.*
