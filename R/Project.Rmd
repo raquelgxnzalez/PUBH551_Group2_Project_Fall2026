@@ -187,7 +187,7 @@ This suspicious value does not need to be removed from the dataset because it is
 # Perform a complete-case analysis for the primary MLR
 analytic_data <- data %>%
   # Filter the dataset for our group's chosen condition subset
-  filter(comorbid_condition == "insert here") %>%
+  filter(comorbid_condition == "cardiovascular disease") %>%
   # Restrict to complete cases on the 6 primary MLR variables only
   drop_na(
     phq9_score,
@@ -201,3 +201,4 @@ analytic_data <- data %>%
 write_csv(analytic_data, "../data/cleaned_analytic_data.csv")
 ```
 
+After selecting cardiovascular disease as our comorbid condition, performing a complete-case analysis on the dataset results in a final N = 1075.
