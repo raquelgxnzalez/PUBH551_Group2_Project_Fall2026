@@ -4,8 +4,10 @@ library(tidyverse)
 # Question 2. Data audit, cleaning, and analytic cohort
 # 2a. Standardization
 # Import raw CSV file from data folder
-raw_data <- read_csv("../data/PUBH551_Group_Project_Depression_Data_2005_2025.csv", 
-                     col_types = cols(.default = col_character())) 
+# Use here::here to manage file paths
+raw_data <- read_csv(
+  here::here("data", "PUBH551_Group_Project_Depression_Data_2005_2025.csv"), 
+  col_types = cols(.default = col_character())) 
 # Added col_types = col(.default) per step 2b instruction
 # Identify the 5-missing value representations in raw data by quickly looking at every 
 # unique response
@@ -76,7 +78,7 @@ summary(data$total_cholesterol_mg_dL)
 # Perform a complete-case analysis for the primary MLR
 analytic_data <- data %>%
   # Filter the dataset for our group's chosen condition subset
-  filter(comorbid_condition == "insert here") %>%
+  filter(comorbid_condition == "cardiovascular disease") %>%
   # Restrict to complete cases on the 6 primary MLR variables only
   drop_na(
     phq9_score,
@@ -87,4 +89,4 @@ analytic_data <- data %>%
     smoking_status
   )
 # Export the cleaned analytic CSV for analysis into the data folder
-write_csv(analytic_data, "../data/cleaned_analytic_data.csv")
+write_csv(analytic_data, here::here("data", "cleaned_analytic_data.csv"))
