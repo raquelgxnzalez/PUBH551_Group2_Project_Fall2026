@@ -1,0 +1,235 @@
+---
+title: 'Group Project: Depression, Comorbidity, and Multiple Linear Regression'
+author: "Raquel Gonzalez, Nancy Hernandez, Grant Pasamonte, and Kevin Roldan"
+date: "2026-10-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, include=FALSE}
+# Load necessary libraries
+library(tidyverse) # For ggplot, dyplr, etc
+library(knitr) # For Q3 table
+```
+
+# Question 2. Data audit, cleaning, and analytic cohort
+
+## 2a. Standardization
+
+```{r}
+# Import raw CSV file from data folder
+# Use here::here to manage file paths
+raw_data <- read_csv(
+  here::here("data", "PUBH551_Group_Project_Depression_Data_2005_2025.csv"), 
+  col_types = cols(.default = col_character())) 
+  # Added col_types = col(.default) per step 2b instruction
+```
+
+```{r, eval = FALSE}
+# Identify the 5-missing value representations in raw data by quickly looking at every 
+# unique response
+raw_data %>% 
+  # Select the text columns
+  select(where(is.character)) %>%
+  # Do not include the variables containing "id", "date", and "USD" as those will have an 
+  # abundance of unique values and will be hard to sift through
+  select(-matches("_id"), -matches("date"), -matches("usd")) %>%
+  # Use map() to return a list of each unique response from every variable
+  map(~ unique(.x))
+# 5 missing value representations = "", ".", "NA", "N/A" , and "missing"
+```
+
+We need to replace the missing value representations with standard NA values to prevent errors in future analysis.
+
+```{r}
+# Replace the missing value representations with standard NA values across all columns
+# Use mutate(across(where(is.character))) to modify all columns stored as text/characters
+# ifelse(.x %in% ) to check each value in the column and identify whether the current value 
+# (.x) matches any of the 5 specific missing value strings identified in audit and replace 
+# with standard NA value
+na_data <- raw_data %>%
+  mutate(across(where(is.character), ~ ifelse(.x %in% c("", ".", "NA", "N/A", "missing"), NA, .x)))
+
+# Standardize the dataset to fix inconsistent capitalization, whitespace, underscores, and missing-value representations
+data <- na_data %>%
+  # Use mutate() to modify column inside the dataset
+  mutate(across(
+    # Exclude the often case-sensitive ID codes from cleaning using !c()
+    where(is.character) & !c(record_id, participant_id),
+    # Apply changes to every item in list
+    ~ .x %>%
+      # str_to_lower() converts every letter to lowercase
+      str_to_lower() %>%
+      # str_squish() removes leading/trailing spaces
+      str_squish() %>%
+      # str_replace_all() to replace all underscores with normal spaces
+      str_replace_all("_", " ")
+  ))
+```
+
+Looking through the unique values, we can document a variety of inconsistencies across the "comorbid_condition" column prior to filtering.
+
+**Capitalization:** There was a mixed use of title case, uppercase, and lowercase
+
+- e.g. "ASTHMA", "Asthma", and "asthma"
+- e.g. "OBESITY", "Obesity", and "obesity"
+- e.g. "HYPERTENSION", "Hypertension", and "hypertension"
+- e.g. "CARDIOVASCULAR DISEASE", "Cardiovascular Disease", and "cardiovascular disease"
+- e.g. "CHRONIC KIDNEY DISEASE", "Chronic Kidney Disease", and "chronic kidney disease"
+- e.g. "TYPE 2 DIABETES", "Type 2 Diabetes", and "type 2 diabetes"
+
+**Whitespace:** There were extra leading and trailing spaces around condition labels
+
+- e.g. " Asthma "
+- e.g. " Obesity "
+- e.g. " Hypertension "
+- e.g. " Cardiovascular Disease "
+- e.g. " Chronic Kidney Disease "
+- e.g. " Type 2 Diabetes "
+
+**Underscores:** There were spaces replaced by underscores in column names
+
+- e.g. "Chronic_Kidney_Disease", "Type_2_Diabetes", "Cardiovascular_Disease"
+
+**5 missing value representations:** "" (empty strings), ".", "NA", "N/A", and "missing".
+
+The dataset now has standard missing value notation and the comorbid_condition column has consistent syntax across all observations (N = 7200)
+
+## 2b. Cleaning Numeric Fields
+
+```{r}
+# Retroactively add cols(.default = col_character())) to the CSV import step
+# to have deliberate control of column type
+```
+
+Based on the unique values audited in Q2.a, several numeric variables contain commas, percent signs, currency symbols, units, and other extra characters.
+
+We have documented the following issues across the dataset:
+
+- **annual_household_income_usd:** "\$" and "," and "USD"
+  - e.g. "\$60,829", "19732 USD"
+- **area_deprivation_index_percentile:** "%" and " percent"
+  - e.g. "42.5%", "39.8 percent"
+- **sleep_duration_hours:** " h" and "hrs"
+  - e.g. "8.2 h", "6.3hrs"
+- **physical_activity_min_week"**: " min"
+  - e.g. "161 min"
+- **bmi_kg_m2:** "kg/m2" and "BMI"
+  - e.g. "21.6 kg/m2", "30.2 BMI"
+- **systolic_bp_mmHg:** "mm Hg" and "mmhg"
+  - e.g. "134mm Hg", "106 mmHg"
+- **total_cholesterol_mg_dL & fasting_glucose_mg_dL:** "mg/dl" and "mg_dl"
+  - e.g. "165mg_dl", "67 mg/dl"
+- **healthcare_visits_past_year:** "visits"
+  - e.g. "5 visits"
+- **phq9_score:** "score:" and "pts" and "points"
+  - e.g. "score:11", "9 pts", "16 points"
+
+```{r}
+# Use across() and parse_number() to clean numeric fields discussed above
+data <- data %>%
+  mutate(across(
+    c(annual_household_income_usd, area_deprivation_index_percentile, 
+      sleep_duration_hours, physical_activity_min_week, bmi_kg_m2, 
+      systolic_bp_mmHg, total_cholesterol_mg_dL, healthcare_visits_past_year, 
+      phq9_score),
+    parse_number
+      )
+  )      
+```
+
+## 2c. Removing Duplicates
+
+There are 6 comorbid condition subsets in the dataset (Asthma, Cardiovascular Disease, Chronic Kidney Disease, Hypertension, Obesity, and Type 2 Diabetes.)
+
+Each subset has a duplicate row, for a total of 6 duplicate rows that need to be removed, for an N = 7,194 (from 7,200).
+
+```{r}
+# Use distinct() to remove all duplicate rows
+data <- data %>%
+  distinct()
+```
+
+```{r}
+# Identify rows where either prevalence or mortality values are missing
+missing_vars <- data %>%
+  # Use filter() to identify rows of NAs in each prevalence/mortality column
+  filter(is.na(condition_prevalence_per_100k) | 
+          is.na(condition_mortality_per_100k)) %>%
+  # Select key columns (record_id), comorbid_condition) in addition to 
+  # prevalence/mortality to create a df for easy scanning
+  select(record_id, comorbid_condition, 
+         condition_prevalence_per_100k, condition_mortality_per_100k) %>%
+  as.data.frame()
+# Print table of missing variables with key identifier columns
+print(missing_vars)
+```
+
+Each comorbid condition has a missing prevalence and mortality value for a total of 12 records.
+
+These missing prevalence and mortality values do not cause exclusion from the depression model because these variables are not called for in either the SLR or MLR models.
+
+The MLR depression model, $\text{PHQ9}_i = \beta_0 + \beta_1(\text{PhysicalActivity}_i) + \beta_2(\text{Age}_i) + \text{sex indicators} + \beta_{\text{income}}(\text{Income}_i) + \text{smoking indicators} + \varepsilon_i$, evaluates individual-level health relationships, opposed to contextual metrics like prevalence or mortality. Consequently, missing values in these variables will not affect any model parameters or analysis, so they do not warrant deletion from the depression model.
+
+## 2d. Suspicious Value
+
+```{r}
+# Use summary() to identify the suspicious value in total_cholesterol_mg_dL
+summary(data$total_cholesterol_mg_dL)
+```
+
+The variable total_cholesterol_mg_dL in this dataset primarily contains values from 85 mg/dL to about 300 mg/dL, but has one high outlier at 950 mg/dL. This value is far outside the norm in the dataset and in what is medically plausible. While it is not impossible for an individual to have an extreme reading like 950 mg/dL, it is more probable that this represents a data entry error, though this cannot be verified.
+
+This suspicious value does not need to be removed from the dataset because it is not part of the primary MLR depression model, $\text{PHQ9}_i = \beta_0 + \beta_1(\text{PhysicalActivity}_i) + \beta_2(\text{Age}_i) + \text{sex indicators} + \beta_{\text{income}}(\text{Income}_i) + \text{smoking indicators} + \varepsilon_i$. This outlier will neither affect calculations nor analysis, so it is safe to retain in the dataset.
+
+## 2e. Complete-Case Analysis for Primary MLR
+
+```{r}
+# Perform a complete-case analysis for the primary MLR
+analytic_data <- data %>%
+  # Filter the dataset for our group's chosen condition subset
+  filter(comorbid_condition == "cardiovascular disease") %>%
+  # Restrict to complete cases on the 6 primary MLR variables only
+  drop_na(
+    phq9_score,
+    physical_activity_min_week,
+    age_years,
+    sex,
+    annual_household_income_usd,
+    smoking_status
+  )
+# Export the cleaned analytic CSV for analysis into the data folder
+write_csv(analytic_data, here::here("data", "cleaned_analytic_data.csv"))
+```
+
+The master CSV contained N = 7200 observations of 36 variables (1200 observations per comorbidity (6).
+
+After standardizing the condition column and cleaning the numeric fields, we removed all duplicate rows (1 per comorbidity (6)), resulting in N = 7194.
+
+After selecting cardiovascular disease as our comorbid condition, performing a complete-case analysis on the dataset results in a final N = 1075.
+
+*Note: we opted to clean the entire master dataset prior to filtering (opposed to cleaning only our filtered dataset) to maintain a clean separation between the data cleaning phase and the analytic subsetting phase and to establish a clear and reproducible data management strategy.*
+
+# Question 3. Descriptive and Exploratory Analysis
+
+## Table 1. Descriptive Statistics
+
+```{r}
+# Create descriptive statistics table using final, analytic dataset
+
+```
+
+## Figure 1. PHQ-9 vs Physical Activity
+
+```{r}
+
+```
+
+## Figure 2. PHQ-9 vs *insert categorical predictor&
+
+```{r}
+
+```
