@@ -11,7 +11,8 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```{r, include=FALSE}
 # Load necessary libraries
-library(tidyverse)
+library(tidyverse) # For ggplot, dyplr, etc
+library(knitr) # For Q3 table
 ```
 
 # Question 2. Data audit, cleaning, and analytic cohort
@@ -20,9 +21,11 @@ library(tidyverse)
 
 ```{r}
 # Import raw CSV file from data folder
-raw_data <- read_csv("../data/PUBH551_Group_Project_Depression_Data_2005_2025.csv", 
-                     col_types = cols(.default = col_character())) 
-                    # Added col_types = col(.default) per step 2b instruction
+# Use here::here to manage file paths
+raw_data <- read_csv(
+  here::here("data", "PUBH551_Group_Project_Depression_Data_2005_2025.csv"), 
+  col_types = cols(.default = col_character())) 
+  # Added col_types = col(.default) per step 2b instruction
 ```
 
 ```{r, eval = FALSE}
@@ -199,7 +202,7 @@ analytic_data <- data %>%
     smoking_status
   )
 # Export the cleaned analytic CSV for analysis into the data folder
-write_csv(analytic_data, "../data/cleaned_analytic_data.csv")
+write_csv(analytic_data, here::here("data", "cleaned_analytic_data.csv"))
 ```
 
 The master CSV contained N = 7200 observations of 36 variables (1200 observations per comorbidity (6).
@@ -209,3 +212,24 @@ After standardizing the condition column and cleaning the numeric fields, we rem
 After selecting cardiovascular disease as our comorbid condition, performing a complete-case analysis on the dataset results in a final N = 1075.
 
 *Note: we opted to clean the entire master dataset prior to filtering (opposed to cleaning only our filtered dataset) to maintain a clean separation between the data cleaning phase and the analytic subsetting phase and to establish a clear and reproducible data management strategy.*
+
+# Question 3. Descriptive and Exploratory Analysis
+
+## Table 1. Descriptive Statistics
+
+```{r}
+# Create descriptive statistics table using final, analytic dataset
+
+```
+
+## Figure 1. PHQ-9 vs Physical Activity
+
+```{r}
+
+```
+
+## Figure 2. PHQ-9 vs *insert categorical predictor&
+
+```{r}
+
+```
