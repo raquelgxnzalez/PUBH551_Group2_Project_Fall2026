@@ -11,7 +11,8 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```{r, include=FALSE}
 # Load necessary libraries
-library(tidyverse)
+library(tidyverse) # For ggplot, dyplr, etc
+library(knitr) # For Q3 table
 ```
 
 # Question 2. Data audit, cleaning, and analytic cohort
@@ -209,3 +210,24 @@ After standardizing the condition column and cleaning the numeric fields, we rem
 After selecting cardiovascular disease as our comorbid condition, performing a complete-case analysis on the dataset results in a final N = 1075.
 
 *Note: we opted to clean the entire master dataset prior to filtering (opposed to cleaning only our filtered dataset) to maintain a clean separation between the data cleaning phase and the analytic subsetting phase and to establish a clear and reproducible data management strategy.*
+
+# Question 3. Descriptive and Exploratory Analysis
+
+## Table 1. Descriptive Statistics
+
+```{r}
+# Create descriptive statistics table using final, analytic dataset
+
+```
+
+## Figure 1. PHQ-9 vs Physical Activity
+
+```{r}
+
+```
+
+## Figure 2. PHQ-9 vs *insert categorical predictor&
+
+```{r}
+
+```
